@@ -20,3 +20,5 @@ ENV/
 # Evaluation artifacts
 results/
 05/executed.ipynb
+
+.profile
