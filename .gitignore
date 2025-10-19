@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # Virtual environments
+.env
 .env/
 .venv/
 venv/
@@ -22,3 +23,5 @@ results/
 05/executed.ipynb
 
 .profile
+
+.pnpm-store/

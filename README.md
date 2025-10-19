@@ -14,40 +14,28 @@ below, nothing else is imposed.
 
 ## Evaluation
 
-Official scoring happens through the remote `POST /api/evaluate` endpoint inside the scoreboard Next.js app. Use
-`submit.py` to package your solutions and upload them:
+Run `python3 evaluate.py`. The script reads `.profile` for your team name (prompting if
+missing), executes every `run.sh`, and writes a breakdown to `results/latest.json`.
+
+To publish results to the scoreboard, set `SCOREBOARD_URL` before running the evaluator:
 
 ```bash
-python3 submit.py --zip submissions.zip
+export SCOREBOARD_URL="https://your-app.vercel.app/api/submit"
+python3 evaluate.py
 ```
 
-By default the script reads `EVALUATE_URL`; override with `--url https://your-app.vercel.app/api/evaluate` if needed.
-Set `EVALUATE_TOKEN` when the endpoint expects bearer auth. The helper reads `.profile` for your team name (prompting if
-it doesn’t exist) and streams progress as the server evaluates each puzzle.
+If `SCOREBOARD_URL` is unset (or you pass `--no-submit`), the run stays local.
 
 ### Local Spot Checks
 
 You can still run `python3 evaluate.py` for quick feedback during development, but leaderboard results only count once
-they’ve been processed by the remote service. Use familiar flags like `--problem` and `--verbose` to target specific
-puzzles locally.
+they’ve been pushed to the scoreboard. Use familiar flags like `--problem` and `--verbose` to target specific puzzles.
 
 ## Scoreboard Submodule
 
-The directory `scoreboard/` is reserved for the live leaderboard (Next.js on Vercel backed by Upstash Redis). Replace
-the placeholder with an actual Git submodule when the app is ready:
-
-```bash
-git submodule add <scoreboard-repo-url> scoreboard
-```
-
-Inside that repo, expose:
-
-- `/api/submit` for upserting scores (authenticated via HMAC token)
-- `/api/scoreboard` for public leaderboard data
-- Optional `/api/reset` for admin resets
-
-Document required environment variables in `scoreboard/.env.example` and provide npm scripts (`dev`, `lint`, `test`,
-`start`).
+The `scoreboard/` directory contains the Next.js app that serves the live leaderboard. It accepts JSON submissions at
+`/api/submit` and exposes the table via `/api/scoreboard`. See `scoreboard/README.md` for environment variables and
+development instructions.
 
 ## Repository Docs
 

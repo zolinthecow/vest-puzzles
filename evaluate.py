@@ -365,7 +365,7 @@ def verifier_05(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
     if not got:
         return False, f'Line {idx + 1} is empty'
     if got != answer:
-        return False, f'Line {idx + 1} mismatch: expected "{answer}", got "{got}"'
+        return False, f'Line {idx + 1} is incorrect'
     return True, ''
 
 
@@ -472,6 +472,7 @@ def main() -> int:
 
     results_payload = {
         "team": team_name,
+        "teamName": team_name,
         "total": total_score,
         "max_total": total_max,
         "timestamp": time.time(),
