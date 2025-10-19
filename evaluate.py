@@ -7,6 +7,7 @@ import random
 import subprocess
 import sys
 import time
+import ssl
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, cast
@@ -131,13 +132,27 @@ def submit_scoreboard(
     if secret:
         headers["Authorization"] = f"Bearer {secret}"
     req = request.Request(url, data=json.dumps(payload).encode(), headers=headers)
-    try:
-        with request.urlopen(req, timeout=5) as resp:
-            body = resp.read().decode()
+    context: Optional[ssl.SSLContext] = None
+    for attempt in range(2):
+        try:
+            if context is None:
+                resp = request.urlopen(req, timeout=5)
+            else:
+                resp = request.urlopen(req, timeout=5, context=context)
+            with resp:
+                body = resp.read().decode()
             if verbose:
                 print(f"Scoreboard response: {body}")
-    except error.URLError as exc:
-        print(f"Warning: scoreboard submission failed: {exc}")
+            return
+        except error.URLError as exc:
+            ssl_error = isinstance(exc.reason, ssl.SSLError)
+            if ssl_error and context is None:
+                if verbose:
+                    print("Warning: certificate verification failed; retrying without verification.")
+                context = ssl._create_unverified_context()  # type: ignore[attr-defined]
+                continue
+            print(f"Warning: scoreboard submission failed: {exc}")
+            return
 
 
 # -------------------- Problem Generators & Verifiers --------------------
@@ -222,7 +237,7 @@ def generate_02_cases() -> Iterable[TestCase]:
 
 
 def verifier_02(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
-    d = test.metadata["d"]
+    d = cast(int, test.metadata["d"])
     n = 2 ** d
     lines = [line.strip() for line in stdout.strip().splitlines() if line.strip()]
     if len(lines) != n:
@@ -234,7 +249,10 @@ def verifier_02(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
     for row in matrix:
         if len(row) != n:
             return False, "Row length mismatch"
-    expected = multiply_naive(test.metadata["A"], test.metadata["B"])
+    expected = multiply_naive(
+        cast(List[List[int]], test.metadata["A"]),
+        cast(List[List[int]], test.metadata["B"]),
+    )
     if matrix != expected:
         return False, "Matrix product mismatch"
     return True, ""
@@ -251,61 +269,110 @@ def multiply_naive(a: List[List[int]], b: List[List[int]]) -> List[List[int]]:
     return res
 
 
-CARD_RANKS = "A23456789TJQK"
-CARD_SUITS = "CDHS"
+def generate_00_cases() -> Iterable[TestCase]:
+    cases: List[Tuple[List[int], int, Tuple[int, int]]] = [
+        ([2, 7, 11, 15], 9, (0, 1)),
+        ([3, 2, 4, 8, 5], 6, (1, 2)),
+        ([-3, 4, 3, 90], 0, (0, 2)),
+        ([1, 5, 1, 5], 10, (1, 3)),
+        ([6, -2, 5, -1, 4], 3, (1, 4)),
+    ]
+    for idx, (arr, target, pair) in enumerate(cases, start=1):
+        n = len(arr)
+        lines = [str(n), " ".join(str(x) for x in arr), str(target)]
+        yield TestCase(
+            name=f"00_case_{idx}",
+            input_data="\n".join(lines) + "\n",
+            metadata={"array": arr, "target": target, "pair": pair},
+        )
 
 
-def generate_deck() -> list[str]:
-    return [r + s for s in CARD_SUITS for r in CARD_RANKS]
+def verifier_00(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
+    arr = cast(List[int], test.metadata["array"])
+    target = cast(int, test.metadata["target"])
+    expected = cast(Tuple[int, int], test.metadata["pair"])
+    tokens = stdout.strip().split()
+    if len(tokens) < 2:
+        return False, "Expected two indices"
+    try:
+        i, j = int(tokens[0]), int(tokens[1])
+    except ValueError:
+        return False, "Indices must be integers"
+    n = len(arr)
+    if not (0 <= i < n and 0 <= j < n):
+        return False, "Index out of range"
+    if i == j:
+        return False, "Indices must be distinct"
+    if arr[i] + arr[j] != target:
+        return False, "Indices do not sum to target"
+    if {i, j} != set(expected):
+        return False, "Incorrect index pair"
+    return True, ""
 
+
+
+
+def _find_divisible_subarray(arr: List[int]) -> Tuple[int, int]:
+    n = len(arr)
+    prefix = 0
+    seen: Dict[int, int] = {0: 0}
+    for i in range(1, n + 1):
+        prefix = (prefix + arr[i - 1]) % n
+        if prefix in seen:
+            start_idx = seen[prefix] + 1
+            return start_idx, i
+        seen[prefix] = i
+    raise ValueError("No divisible subarray found")
 
 
 def generate_03_cases() -> Iterable[TestCase]:
-    rng = random.Random(303)
-    notes = 'abcdefg'
-    for idx in range(12):
-        N = rng.randint(9, 30)
-        melody = ''.join(rng.choice(notes) for _ in range(N))
-        residue = rng.randrange(3)
-        monitored = [i for i in range(N) if i % 3 == residue]
-        cadence_pairs = [(melody[i], melody[(i + 3) % N]) for i in monitored]
-        pickup_pairs = [(melody[i], melody[(i - 1) % N]) for i in monitored]
-        rng.shuffle(cadence_pairs)
-        rng.shuffle(pickup_pairs)
-        C = len(cadence_pairs)
-        M = rng.randint((N + 1) // 2, N)
-        start = rng.randrange(N)
-        fragment = ''.join(melody[(start + j) % N] for j in range(M))
-        lines = [
-            str(N),
-            str(C),
-        ]
-        lines.extend(f"{x} {y}" for x, y in cadence_pairs)
-        lines.append(str(C))
-        lines.extend(f"{u} {v}" for u, v in pickup_pairs)
-        lines.append(str(M))
-        lines.append(fragment)
-        input_data = '\n'.join(lines) + '\n'
+    rng = random.Random(606)
+    base_cases = [
+        [3, 1, 4, 2, 2],
+        [5, -2, 7, 3, 9, -4],
+        [10, 10, 10],
+        [1, 2, 3, 4, 5, 6, 7],
+    ]
+    cases: List[List[int]] = base_cases[:]
+    for _ in range(8):
+        n = rng.randint(2, 40)
+        arr = [rng.randint(-20, 20) for _ in range(n)]
+        cases.append(arr)
+
+    for idx, arr in enumerate(cases, start=1):
+        l, r = _find_divisible_subarray(arr)
+        n = len(arr)
+        lines = [str(n), " ".join(str(x) for x in arr)]
         yield TestCase(
-            name=f"03_case_{idx+1}",
-            input_data=input_data,
-            metadata={'melody': melody, 'N': N},
+            name=f"03_case_{idx}",
+            input_data="\n".join(lines) + "\n",
+            metadata={"array": arr, "pair": (l, r)},
         )
 
+
 def verifier_03(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
-    melody = test.metadata['melody']
-    N = test.metadata['N']
-    lines = [line.strip() for line in stdout.splitlines() if line.strip()]
-    if not lines:
-        return False, 'No output produced'
-    candidate = lines[0]
-    if len(candidate) != N:
-        return False, f'Expected output length {N}, got {len(candidate)}'
-    if any(ch not in 'abcdefg' for ch in candidate):
-        return False, 'Output must contain only notes a-g'
-    if candidate != melody:
-        return False, 'Melody does not match reference solution'
-    return True, ''
+    arr = cast(List[int], test.metadata["array"])
+    n = len(arr)
+    tokens = stdout.strip().split()
+    if not tokens:
+        return False, "No output produced"
+    first = tokens[0].upper()
+    if first == "NO":
+        return False, "A solution always exists"
+    if first == "YES":
+        tokens = tokens[1:]
+    if len(tokens) < 2:
+        return False, "Expected indices after YES"
+    try:
+        l, r = int(tokens[0]), int(tokens[1])
+    except ValueError:
+        return False, "Indices must be integers"
+    if not (1 <= l <= r <= n):
+        return False, "Indices out of range"
+    sub_sum = sum(arr[l - 1 : r])
+    if sub_sum % n != 0:
+        return False, "Subarray sum is not divisible by N"
+    return True, ""
 
 
 
@@ -364,8 +431,8 @@ def generate_05_cases() -> Iterable[TestCase]:
 
 def verifier_05(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
     lines = [line.rstrip("\n") for line in stdout.splitlines() if not line.startswith('#')]
-    idx = test.metadata['index']
-    answer = test.metadata['answer']
+    idx = cast(int, test.metadata['index'])
+    answer = cast(str, test.metadata['answer'])
     if idx >= len(lines):
         return False, f'Missing line {idx + 1} in SOLUTION.md'
     got = lines[idx].strip()
@@ -381,6 +448,15 @@ def verifier_05(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
 
 
 PROBLEMS: Dict[str, ProblemSpec] = {
+    "00": ProblemSpec(
+        pid="00",
+        name="Two-Sum Warmup",
+        folder=Path("00"),
+        generator=generate_00_cases,
+        verifier=verifier_00,
+        timeout=3.0,
+        weight=10.0,
+    ),
     "01": ProblemSpec(
         pid="01",
         name="Sneaky Islanders",
@@ -415,7 +491,7 @@ PROBLEMS: Dict[str, ProblemSpec] = {
         generator=generate_04_cases,
         verifier=verifier_04,
         timeout=20.0,
-        weight=25.0,
+        weight=20.0,
     ),
     "05": ProblemSpec(
         pid="05",
@@ -424,7 +500,7 @@ PROBLEMS: Dict[str, ProblemSpec] = {
         generator=generate_05_cases,
         verifier=verifier_05,
         timeout=300.0,
-        weight=10.0,
+        weight=5.0,
     ),
 }
 

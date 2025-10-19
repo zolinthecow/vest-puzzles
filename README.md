@@ -6,9 +6,10 @@ below, nothing else is imposed.
 
 | Puzzle | Notes |
 | ------ | ----- |
+| 00 – Two-Sum Warmup | Find two indices that sum to a target. |
 | 01 – Sneaky Islanders | Input/output spec only—provide your own tooling. |
 | 02 – Tiled Matrix Multiplication | Recursion-focused matrix multiply. Includes a single illustrative sample in the statement. |
-| 03 – Conductors' Fugue | Reconstruct a cyclic melody from cadence/pickup logs plus a long fragment. |
+| 03 – Divisible Subarray | Output a contiguous segment whose sum is divisible by N. |
 | 04 – The Dancing Grid | Import `grid_api.run_dancing_grid`, preprocess feeds, and let the grid run for exactly N ticks. |
 | 05 – Ungarbling | Inspect `puzzle1.py`–`puzzle3.py`, decode the sentences, and list them in `SOLUTION.md`. |
 
