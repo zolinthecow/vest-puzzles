@@ -17,14 +17,15 @@ below, nothing else is imposed.
 Run `python3 evaluate.py`. The script reads `.profile` for your team name (prompting if
 missing), executes every `run.sh`, and writes a breakdown to `results/latest.json`.
 
-To publish results to the scoreboard, set `SCOREBOARD_URL` before running the evaluator:
+By default the script also submits to <https://vest-puzzles-scoreboard.vercel.app/api/submit>. To target a different
+deployment, override `SCOREBOARD_URL` before running the evaluator:
 
 ```bash
 export SCOREBOARD_URL="https://your-app.vercel.app/api/submit"
 python3 evaluate.py
 ```
 
-If `SCOREBOARD_URL` is unset (or you pass `--no-submit`), the run stays local.
+Use `--no-submit` if you want to keep a run local even when the variable is set.
 
 ### Local Spot Checks
 
