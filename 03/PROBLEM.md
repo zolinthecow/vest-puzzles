@@ -1,11 +1,12 @@
 # Divisible Subarray
 
 You are given an array of `N` integers `a_1, a_2, …, a_N`. Determine whether
-there exists a non-empty contiguous subarray whose sum is divisible by `N`. If
-such a subarray exists, output one example using 1-based indices.
+there exists a non-empty contiguous subarray whose sum is divisible by `N`.
 
-This is the classic pigeonhole-principle result: for every array there is at
-least one valid subarray. Your program must find (and print) any one of them.
+It is a known fact (pigeonhole principle) that for any array there is always at
+least one such subarray. Your program should therefore output `YES` for every
+valid input. However, to keep the statement complete, the required output format
+still asks for a simple `YES`/`NO` decision.
 
 ## Input
 
@@ -19,11 +20,8 @@ a_1 a_2 … a_N
 
 ## Output
 
-Print `YES` on the first line. On the second line print two integers `l r`
-(`1 ≤ l ≤ r ≤ N`) such that `a_l + a_{l+1} + … + a_r` is divisible by `N`.
-
-If for some reason your program believes no such subarray exists, print `NO`
-(in official tests, `YES` will always be the correct answer).
+Print `YES` if there exists a contiguous subarray whose sum is divisible by `N`,
+otherwise print `NO`. (In official tests the answer will always be `YES`.)
 
 ## Example
 
@@ -36,7 +34,4 @@ If for some reason your program believes no such subarray exists, print `NO`
 **Output**
 ```
 YES
-2 3
 ```
-
-Explanation: `a_2 + a_3 = 1 + 4 = 5`, and `5` is divisible by `N = 5`.

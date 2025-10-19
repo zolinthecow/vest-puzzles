@@ -312,68 +312,53 @@ def verifier_00(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
 
 
 
-def _find_divisible_subarray(arr: List[int]) -> Tuple[int, int]:
+
+def _find_divisible_subarray(arr: List[int]) -> bool:
     n = len(arr)
     prefix = 0
-    seen: Dict[int, int] = {0: 0}
-    for i in range(1, n + 1):
-        prefix = (prefix + arr[i - 1]) % n
+    seen = {0}
+    for value in arr:
+        prefix = (prefix + value) % n
         if prefix in seen:
-            start_idx = seen[prefix] + 1
-            return start_idx, i
-        seen[prefix] = i
-    raise ValueError("No divisible subarray found")
+            return True
+        seen.add(prefix)
+    return False
 
 
 def generate_03_cases() -> Iterable[TestCase]:
     rng = random.Random(606)
-    base_cases = [
+    cases = [
         [3, 1, 4, 2, 2],
         [5, -2, 7, 3, 9, -4],
         [10, 10, 10],
         [1, 2, 3, 4, 5, 6, 7],
     ]
-    cases: List[List[int]] = base_cases[:]
     for _ in range(8):
         n = rng.randint(2, 40)
         arr = [rng.randint(-20, 20) for _ in range(n)]
         cases.append(arr)
 
     for idx, arr in enumerate(cases, start=1):
-        l, r = _find_divisible_subarray(arr)
         n = len(arr)
-        lines = [str(n), " ".join(str(x) for x in arr)]
+        input_data = str(n) + '\n' + ' '.join(str(x) for x in arr) + '\n'
         yield TestCase(
             name=f"03_case_{idx}",
-            input_data="\n".join(lines) + "\n",
-            metadata={"array": arr, "pair": (l, r)},
+            input_data=input_data,
+            metadata={'array': arr},
         )
 
 
+
 def verifier_03(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
-    arr = cast(List[int], test.metadata["array"])
-    n = len(arr)
+    arr = cast(List[int], test.metadata.get("array", []))
+    has_solution = _find_divisible_subarray(arr)
     tokens = stdout.strip().split()
     if not tokens:
         return False, "No output produced"
-    first = tokens[0].upper()
-    if first == "NO":
-        return False, "A solution always exists"
-    if first == "YES":
-        tokens = tokens[1:]
-    if len(tokens) < 2:
-        return False, "Expected indices after YES"
-    try:
-        l, r = int(tokens[0]), int(tokens[1])
-    except ValueError:
-        return False, "Indices must be integers"
-    if not (1 <= l <= r <= n):
-        return False, "Indices out of range"
-    sub_sum = sum(arr[l - 1 : r])
-    if sub_sum % n != 0:
-        return False, "Subarray sum is not divisible by N"
-    return True, ""
-
+    answer = tokens[0].upper()
+    if has_solution:
+        return (answer == "YES", "" if answer == "YES" else "Should output YES")
+    return (answer == "NO", "" if answer == "NO" else "Should output NO")
 
 
 def generate_04_cases() -> Iterable[TestCase]:
@@ -477,7 +462,7 @@ PROBLEMS: Dict[str, ProblemSpec] = {
     ),
     "03": ProblemSpec(
         pid="03",
-        name="Five Card Magic",
+        name="Divisible Subarray",
         folder=Path("03"),
         generator=generate_03_cases,
         verifier=verifier_03,
