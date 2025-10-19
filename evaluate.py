@@ -9,7 +9,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, cast
 from urllib import request, error
 
 PROFILE_PATH = Path(".profile")
@@ -206,7 +206,7 @@ def generate_matrix(size: int, seed: int) -> List[List[int]]:
 
 
 def generate_02_cases() -> Iterable[TestCase]:
-    configs = [(1, 101), (2, 202), (3, 303)]
+    configs: List[Tuple[int, int]] = [(1, 101), (2, 202), (3, 303)]
     for idx, (d, seed) in enumerate(configs, start=1):
         n = 2 ** d
         a = generate_matrix(n, seed)
@@ -311,7 +311,7 @@ def verifier_03(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
 
 def generate_04_cases() -> Iterable[TestCase]:
     rng = random.Random(505)
-    configs = [2, 3, 4]
+    configs: List[int] = [2, 3, 4]
     for idx, n in enumerate(configs, start=1):
         a = generate_matrix(n, rng.randint(0, 10_000))
         b = generate_matrix(n, rng.randint(0, 10_000))
@@ -327,7 +327,9 @@ def generate_04_cases() -> Iterable[TestCase]:
 
 def verifier_04(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str]:
     matrix_output = [line.strip() for line in stdout.strip().splitlines() if line.strip()]
-    n = len(test.metadata["A"])
+    a_matrix = cast(List[List[int]], test.metadata["A"])
+    b_matrix = cast(List[List[int]], test.metadata["B"])
+    n = len(a_matrix)
     if len(matrix_output) != n:
         return False, f"Expected {n} rows, got {len(matrix_output)}"
     try:
@@ -336,7 +338,7 @@ def verifier_04(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
         return False, "Output must contain integers"
     if any(len(row) != n for row in matrix):
         return False, "Row length mismatch"
-    expected = multiply_naive(test.metadata["A"], test.metadata["B"])
+    expected = multiply_naive(a_matrix, b_matrix)
     if matrix != expected:
         return False, "Matrix product mismatch"
     return True, ""
@@ -345,7 +347,7 @@ def verifier_04(test: TestCase, stdout: str, _elapsed: float) -> tuple[bool, str
 
 
 def generate_05_cases() -> Iterable[TestCase]:
-    answers = [
+    answers: List[str] = [
         'the dancing grid keeps time',
         'melodies travel along diagonals',
         'hidden phrase leaps across measures',
